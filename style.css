@@ -1,14 +1,14 @@
 * { box-sizing: border-box; }
 body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 16px; background:#111; color:#eee; background-image: url('assets/texture_bg.svg'); background-size:cover }
 h1 { margin: 0 0 12px 0 }
-#hud { display:flex; gap:16px; align-items:center; margin-bottom:12px }
+#hud { display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap }
 #controls { display:flex; gap:16px }
 #cameras { width:260px; background:#222; padding:8px; border-radius:6px }
 #cams { display:flex; flex-wrap:wrap; gap:8px }
 .cam-thumb { width:120px; height:70px; background:#000; border:2px solid #333; display:flex; align-items:center; justify-content:center; color:#aaa; cursor:pointer; border-radius:4px; background-repeat:no-repeat; background-size:cover }
 .cam-thumb.selected { border-color:#6cf; box-shadow:0 0 8px rgba(108,204,255,0.12) }
-#view { flex:1; background:#222; padding:12px; border-radius:6px; min-height:120px; position:relative; overflow:hidden }
-#view-content { height:200px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#ddd; transition: transform 0.2s ease }
+#view { flex:1; background:#222; padding:12px; border-radius:6px; min-height:160px; position:relative; overflow:hidden }
+#view-content { height:220px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#ddd; transition: transform 0.2s ease }
 .door.closed { background: url('assets/door_texture.svg'); color:#fff; background-size:cover }
 .door.open { background:#060; color:#fff }
 #message { margin-top:12px; font-weight:700 }
@@ -16,6 +16,8 @@ h1 { margin: 0 0 12px 0 }
 button { padding:8px 10px; border-radius:6px; border:0; cursor:pointer }
 #restart { background:#257; color:#fff }
 #toggle-desk { background:#37474f; color:#fff; margin-right:8px }
+#sound-toggle { background:#2a2a2a; color:#fff; margin-right:8px }
+select { padding:6px; border-radius:6px; background:#222; color:#fff; border:0 }
 
 /* when cameras are unavailable */
 .cam-thumb.off { filter:grayscale(1) brightness(0.6) }
@@ -36,3 +38,9 @@ button { padding:8px 10px; border-radius:6px; border:0; cursor:pointer }
 /* warning overlay */
 .warning-overlay { position:absolute; left:0; right:0; top:8px; display:flex; justify-content:center; pointer-events:none }
 .warning-overlay .badge { background:rgba(200,20,20,0.9); padding:8px 12px; border-radius:6px; color:#fff; font-weight:700 }
+
+/* responsive tweaks */
+@media (max-width: 800px){
+  #controls { flex-direction:column }
+  #cameras { width:100% }
+}

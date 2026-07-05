@@ -10,8 +10,10 @@
   <h1>Five Nights at Chesse</h1>
 
   <div id="hud">
+    <div>Night: <span id="night">1</span></div>
     <div>Time: <span id="time">0</span>s</div>
     <div>Power: <span id="power">100</span>%</div>
+    <div>Best Night: <span id="best-night">0</span></div>
     <div>
       Doors:
       <button id="door-left" class="door">Left: Open</button>
@@ -34,6 +36,13 @@
   <div id="message"></div>
   <div id="actions">
     <button id="toggle-desk">Toggle Desk View (D)</button>
+    <button id="sound-toggle">Sound: On</button>
+    <label for="difficulty">Difficulty</label>
+    <select id="difficulty">
+      <option value="easy">Easy</option>
+      <option value="normal" selected>Normal</option>
+      <option value="hard">Hard</option>
+    </select>
     <button id="restart">Restart</button>
   </div>
 

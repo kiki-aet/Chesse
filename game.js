@@ -1,21 +1,24 @@
-// Extended game with audio (WebAudio synth), desk toggle button/keyboard, stronger visuals and jumpscare effects.
+// Major feature upgrade: multiple animatronics, nights progression, difficulty, sound toggle, improved visuals, localStorage best-night.
 
 const ROOMS = ["Show Stage","Dining Room","Kitchen","Hallway","Office"]
+
 let state = {
+  night: 1,
   time: 0,
   power: 100,
   selectedCam: null,
   cameraPutDown: false,
   doorLeftClosed: false,
   doorRightClosed: false,
-  animPos: 0, // 0..4, 4 == office
+  animatronics: [], // array of { name, pos, speedMod }
   running: true,
+  sound: true,
 }
 
-const TICKS_TO_WIN = 60
+const BASE_TICKS_TO_WIN = 60
 const TICK_MS = 1000
 
-// audio using WebAudio (no external files)
+// audio (WebAudio synths)
 let audioCtx = null
 let ambientGain = null
 let ambientOsc = null
@@ -23,7 +26,6 @@ let ambientOsc = null
 function ensureAudio(){
   if(audioCtx) return
   audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-  // ambient drone
   ambientOsc = audioCtx.createOscillator()
   ambientOsc.type = 'sine'
   ambientOsc.frequency.value = 55
@@ -34,38 +36,33 @@ function ensureAudio(){
   ambientOsc.start()
 }
 
-function playFootstep(){
+function playSound(type){
+  if(!state.sound) return
   if(!audioCtx) ensureAudio()
-  const g = audioCtx.createGain(); g.gain.value = 0.08
-  const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = 120
-  o.connect(g); g.connect(audioCtx.destination)
-  o.start(); o.stop(audioCtx.currentTime + 0.08)
-}
-
-function playKnock(){
-  if(!audioCtx) ensureAudio()
-  const g = audioCtx.createGain(); g.gain.value = 0.14
-  const o = audioCtx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 220
-  o.connect(g); g.connect(audioCtx.destination)
   const now = audioCtx.currentTime
-  o.start(now); o.frequency.exponentialRampToValueAtTime(80, now + 0.25)
-  o.stop(now + 0.3)
-}
-
-function playJumpscare(){
-  if(!audioCtx) ensureAudio()
-  const g = audioCtx.createGain(); g.gain.value = 0.6
-  const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = 120
-  o.connect(g); g.connect(audioCtx.destination)
-  const now = audioCtx.currentTime
-  o.start(now); o.frequency.exponentialRampToValueAtTime(800, now + 0.12)
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.7)
-  o.stop(now + 0.75)
+  if(type === 'foot'){
+    const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = 200
+    const g = audioCtx.createGain(); g.gain.value = 0.06
+    o.connect(g); g.connect(audioCtx.destination)
+    o.start(now); o.stop(now + 0.06)
+  } else if(type === 'knock'){
+    const o = audioCtx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 260
+    const g = audioCtx.createGain(); g.gain.value = 0.14
+    o.connect(g); g.connect(audioCtx.destination)
+    o.start(now); o.frequency.exponentialRampToValueAtTime(80, now + 0.25); o.stop(now + 0.35)
+  } else if(type === 'jump'){
+    const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = 120
+    const g = audioCtx.createGain(); g.gain.value = 0.7
+    o.connect(g); g.connect(audioCtx.destination)
+    o.start(now); o.frequency.exponentialRampToValueAtTime(900, now + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.7); o.stop(now + 0.8)
+  }
 }
 
 // elements
+const nightEl = document.getElementById('night')
 const timeEl = document.getElementById('time')
 const powerEl = document.getElementById('power')
+const bestEl = document.getElementById('best-night')
 const camsEl = document.getElementById('cams')
 const view = document.getElementById('view')
 const viewContent = document.getElementById('view-content')
@@ -74,16 +71,38 @@ const doorLeftBtn = document.getElementById('door-left')
 const doorRightBtn = document.getElementById('door-right')
 const restartBtn = document.getElementById('restart')
 const toggleDeskBtn = document.getElementById('toggle-desk')
+const soundToggleBtn = document.getElementById('sound-toggle')
+const difficultySelect = document.getElementById('difficulty')
 
-// keyboard: D toggles desk view, Space to resume audio context if needed
+// initialize animatronics for the current night
+function initAnimatronics(){
+  state.animatronics = []
+  const baseCount = 1 + Math.min(3, Math.floor(state.night/2))
+  for(let i=0;i<baseCount;i++){
+    state.animatronics.push({ name: 'Anim'+(i+1), pos: 0, speedMod: 1 + Math.random()*0.4 })
+  }
+}
+
+// load best night from storage
+function loadBest(){
+  const b = parseInt(localStorage.getItem('chesse_best_night') || '0', 10)
+  bestEl.textContent = b
+}
+function saveBest(){
+  const curBest = parseInt(localStorage.getItem('chesse_best_night') || '0', 10)
+  if(state.night > curBest) localStorage.setItem('chesse_best_night', String(state.night))
+  loadBest()
+}
+
+// keyboard
 window.addEventListener('keydown', (e)=>{
-  if(e.key.toLowerCase() === 'd'){
-    toggleDeskView()
-  }
-  if(e.key === ' '){
-    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume()
-  }
+  if(e.key.toLowerCase() === 'd') toggleDeskView()
+  if(e.key === ' '){ if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume() }
 })
+
+soundToggleBtn.onclick = ()=>{ state.sound = !state.sound; soundToggleBtn.textContent = 'Sound: ' + (state.sound? 'On':'Off'); if(state.sound) ensureAudio(); }
+
+difficultySelect.onchange = ()=>{ /* difficulty affects movement base in ticks */ }
 
 function renderCams(){
   camsEl.innerHTML = ''
@@ -95,227 +114,120 @@ function renderCams(){
 
     d.onclick = ()=>{
       if(!state.running) return
-
-      // clicking same camera toggles desk view on/off
       if(state.selectedCam === i){
-        // toggle: if already in desk-view, pick up; else put down
-        if(state.cameraPutDown){
-          state.cameraPutDown = false
-          state.selectedCam = i // keep camera focused
-        } else {
-          state.selectedCam = null
-          state.cameraPutDown = true
-        }
+        // toggle
+        state.cameraPutDown = !state.cameraPutDown
+        if(state.cameraPutDown) state.selectedCam = null
         renderAll()
         return
       }
-
-      // selecting a different camera clears put-down state
       state.cameraPutDown = false
-
-      // if no power, prevent selecting cameras
-      if(state.power <= 0){
-        renderMessage('No power — cameras offline')
-        return
-      }
-
+      if(state.power <= 0){ renderMessage('No power — cameras offline'); return }
       state.selectedCam = i
       renderAll()
     }
 
-    // visually mark the camera where the animatronic currently is
-    if(i === state.animPos) d.style.borderColor = '#f66'
+    // show if any anim is in this room
+    if(state.animatronics.some(a=>a.pos===i)) d.style.borderColor = '#f66'
     camsEl.appendChild(d)
   })
 }
 
 function renderView(){
-  // clear any danger visuals
   view.classList.remove('view-danger')
   removeWarning()
 
-  // If camera is put down: show office interior so player can watch the door
   if(state.cameraPutDown){
-    // if power is out, show static
-    if(state.power <= 0){
-      viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>`
-      return
-    }
-
-    // show office interior
-    let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/office_interior.svg" alt="office" style="max-width:100%; height:auto;"/>`;
-
-    // if animatronic is at the office door, overlay an anim image, warning and play knock
-    if(state.animPos === ROOMS.length - 1){
-      // danger visuals
+    if(state.power <= 0){ viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>`; return }
+    let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/office_interior.svg" alt="office" style="max-width:100%; height:auto;"/>`
+    // if any anim at the office
+    const atOffice = state.animatronics.filter(a=>a.pos===ROOMS.length-1)
+    if(atOffice.length){
       view.classList.add('view-danger')
-      addWarning('Animatronic at your door!')
-      playKnock()
-
-      html += `<div style="position:relative;margin-top:-260px; pointer-events:none; display:flex;flex-direction:column;align-items:center"><img src='assets/anim_face.svg' alt='anim' style='max-height:220px; width:auto; mix-blend-mode:screen; opacity:0.95'/><div style='color:#f88; font-weight:700; margin-top:6px'>Animatronic at your door!</div></div>`
+      addWarning(atOffice.length>1? 'Multiple animatronics at your door!':'Animatronic at your door!')
+      if(state.sound) playSound('knock')
+      html += `<div style="position:relative;margin-top:-240px; pointer-events:none; display:flex;flex-direction:column;align-items:center"><img src='assets/anim_face.svg' alt='anim' style='max-height:220px; width:auto; mix-blend-mode:screen; opacity:0.95'/><div style='color:#f88; font-weight:700; margin-top:6px'>${atOffice.length>1? 'They are at your door!':'It's at your door!'}</div></div>`
     }
-
     html += `</div>`
     viewContent.innerHTML = html
     return
   }
 
-  // Normal camera view behavior
-  if(state.selectedCam==null){
-    viewContent.textContent = 'Select a camera'
-    return
-  }
+  if(state.selectedCam==null){ viewContent.textContent = 'Select a camera'; return }
   const room = ROOMS[state.selectedCam]
-
-  // if power is out, show static texture
-  if(state.power <= 0){
-    viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>` 
-    return
-  }
-
-  // if animatronic is at this camera, show the anim image and play a footstep sound when it moves here
-  if(state.selectedCam === state.animPos){
-    viewContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/anim_face.svg" alt="anim" style="max-height:180px; width:auto"/><div style="color:#f88">${room} — ANIMATRONIC HERE!</div></div>`
-    return
-  }
-
-  // normal camera view
+  if(state.power <= 0){ viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>`; return }
+  const found = state.animatronics.find(a=>a.pos===state.selectedCam)
+  if(found){ viewContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/anim_face.svg" alt="anim" style="max-height:180px; width:auto"/><div style="color:#f88">${room} — ${found.name} HERE!</div></div>`; return }
   viewContent.textContent = room
 }
 
 function renderHud(){
+  nightEl.textContent = state.night
   timeEl.textContent = state.time
   powerEl.textContent = Math.max(0, Math.round(state.power))
-  doorLeftBtn.textContent = `Left: ${state.doorLeftClosed? 'Closed':'Open'}`
-  doorRightBtn.textContent = `Right: ${state.doorRightClosed? 'Closed':'Open'}`
-  doorLeftBtn.className = 'door ' + (state.doorLeftClosed? 'closed':'open')
-  doorRightBtn.className = 'door ' + (state.doorRightClosed? 'closed':'open')
 }
 
-function renderMessage(t){
-  msgEl.textContent = t||''
-}
+function renderMessage(t){ msgEl.textContent = t||'' }
 
-function addWarning(text){
-  removeWarning()
-  const w = document.createElement('div')
-  w.className = 'warning-overlay'
-  w.innerHTML = `<div class="badge">${text}</div>`
-  view.appendChild(w)
-}
+function addWarning(text){ removeWarning(); const w=document.createElement('div'); w.className='warning-overlay'; w.innerHTML=`<div class="badge">${text}</div>`; view.appendChild(w) }
+function removeWarning(){ const old = view.querySelector('.warning-overlay'); if(old) old.remove() }
 
-function removeWarning(){
-  const old = view.querySelector('.warning-overlay')
-  if(old) old.remove()
-}
+function toggleDeskView(){ if(state.power<=0){ renderMessage('No power — cannot toggle desk view'); return } state.cameraPutDown = !state.cameraPutDown; if(state.cameraPutDown) state.selectedCam = null; renderAll() }
+function toggleLeft(){ if(!state.running) return; state.doorLeftClosed = !state.doorLeftClosed; state.cameraPutDown=false; renderAll() }
+function toggleRight(){ if(!state.running) return; state.doorRightClosed = !state.doorRightClosed; state.cameraPutDown=false; renderAll() }
 
-function toggleDeskView(){
-  // toggle desk view regardless of selected camera (but if no power, show message)
-  if(state.power <= 0){ renderMessage('No power — cannot toggle desk view'); return }
-  state.cameraPutDown = !state.cameraPutDown
-  // deselect cameras when putting down
-  if(state.cameraPutDown) state.selectedCam = null
-  renderAll()
-}
+doorLeftBtn.onclick = toggleLeft; doorRightBtn.onclick = toggleRight; restartBtn.onclick = ()=>{ startNewNight(1) }; toggleDeskBtn.onclick = ()=>{ toggleDeskView(); if(state.sound) ensureAudio() }
 
-function toggleLeft(){ if(!state.running) return; state.doorLeftClosed = !state.doorLeftClosed; state.cameraPutDown = false; renderAll() }
-function toggleRight(){ if(!state.running) return; state.doorRightClosed = !state.doorRightClosed; state.cameraPutDown = false; renderAll() }
-
-doorLeftBtn.onclick = toggleLeft
-doorRightBtn.onclick = toggleRight
-restartBtn.onclick = ()=>{ location.reload() }
-toggleDeskBtn.onclick = ()=>{ toggleDeskView(); if(!audioCtx) ensureAudio() }
-
-function animMoveTick(){
-  if(!state.running) return
-  // movement probability grows slowly as night goes on
-  let base = 0.03 + state.time*0.004
-  // cameras slow it down if the animatronic is being watched
-  if(state.selectedCam === state.animPos) base *= 0.35
-  // power out increases aggression
-  if(state.power <= 0) base *= 2.5
-
-  if(Math.random() < base){
-    state.animPos = Math.min(ROOMS.length-1, state.animPos+1)
-    // play footstep when it moves
-    playFootstep()
-
-    // if it reached the office
-    if(state.animPos === ROOMS.length-1){
-      // if any door is open -> instant attack
-      if(!state.doorLeftClosed && !state.doorRightClosed){
-        // create stronger visual/sound
-        playJumpscare()
-        document.body.classList.add('screen-shake')
-        setTimeout(()=> document.body.classList.remove('screen-shake'), 700)
-        gameOver('The animatronic entered the office while doors were open. You were caught!')
-      } else {
-        // doors closed: it bangs until you open a door (consume power)
-        renderMessage('The animatronic is at your office door! Keep the doors closed to survive.')
-        playKnock()
+function animMoveTick(){ if(!state.running) return
+  const difficulty = difficultySelect.value
+  const diffMult = difficulty === 'easy'? 0.85 : difficulty==='hard'? 1.25 : 1.0
+  state.animatronics.forEach(a=>{
+    // base probability
+    let base = (0.02 + state.time*0.003) * a.speedMod * diffMult * (1 + (state.night-1)*0.05)
+    // watching camera slows them
+    if(state.selectedCam === a.pos) base *= 0.3
+    // power out increases aggression
+    if(state.power <=0) base *= 2.5
+    if(Math.random() < base){
+      a.pos = Math.min(ROOMS.length-1, a.pos+1)
+      if(state.sound) playSound('foot')
+      // if reached office
+      if(a.pos === ROOMS.length-1){
+        if(!state.doorLeftClosed && !state.doorRightClosed){
+          if(state.sound) playSound('jump')
+          document.body.classList.add('screen-shake')
+          setTimeout(()=> document.body.classList.remove('screen-shake'), 700)
+          gameOver(`${a.name} entered the office while doors were open. You were caught!`)
+        } else {
+          renderMessage(`${a.name} is at your office door! Keep the doors closed.`)
+          if(state.sound) playSound('knock')
+        }
       }
     }
-  }
+  })
 }
 
-function powerTick(){
-  if(!state.running) return
-  // cameras use a small amount
-  if(state.selectedCam != null){ state.power -= 0.5 }
-  // doors use power when closed
+function powerTick(){ if(!state.running) return
+  // camera drain: if any camera selected
+  if(state.selectedCam != null) state.power -= 0.5
+  // doors
   if(state.doorLeftClosed) state.power -= 1
   if(state.doorRightClosed) state.power -= 1
   // natural drain
   state.power -= 0.05
-
-  if(state.power <= 0){
-    state.power = 0
-    renderMessage('Power out! Cameras and doors disabled!')
-    // disable features
-    state.selectedCam = null
-    state.cameraPutDown = false
-    state.doorLeftClosed = false
-    state.doorRightClosed = false
-    // but animatronic becomes more aggressive (handled in move)
-  }
+  if(state.power <= 0){ state.power = 0; renderMessage('Power out! Cameras and doors disabled!'); state.selectedCam=null; state.cameraPutDown=false; state.doorLeftClosed=false; state.doorRightClosed=false }
 }
 
-function gameTick(){
-  if(!state.running) return
-  state.time += 1
-  renderHud()
-  powerTick()
-  animMoveTick()
-  renderAll()
+function startNewNight(n){ state.night = n||state.night; state.time = 0; state.power = 100; state.selectedCam=null; state.cameraPutDown=false; state.doorLeftClosed=false; state.doorRightClosed=false; state.running = true; initAnimatronics(); loadBest(); renderAll(); }
 
-  // check win
-  if(state.time >= TICKS_TO_WIN){
-    win()
-  }
-}
+function gameTick(){ if(!state.running) return; state.time += 1; renderHud(); powerTick(); animMoveTick(); renderAll(); const TICKS_TO_WIN = Math.max(20, BASE_TICKS_TO_WIN - (state.night-1)*6); if(state.time >= TICKS_TO_WIN){ // survive
+    state.running = false; renderMessage('You survived the night! Proceeding to next night...'); saveBest(); setTimeout(()=>{ state.night += 1; startNewNight(state.night); }, 1200); } }
 
-function gameOver(reason){
-  state.running = false
-  renderMessage(reason || 'Game over')
-  viewContent.textContent = 'GAME OVER'
-  // stop ambient
-  if(ambientGain) ambientGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6)
-}
+function gameOver(reason){ state.running=false; renderMessage(reason||'Game over'); viewContent.textContent = 'GAME OVER'; saveBest(); }
 
-function win(){
-  state.running = false
-  renderMessage('You survived the night! Congrats!')
-  viewContent.textContent = 'YOU WIN'
-  if(ambientGain) ambientGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6)
-}
+function renderAll(){ renderCams(); renderView(); renderHud(); }
 
-function renderAll(){
-  renderCams()
-  renderView()
-  renderHud()
-}
-
-// start
-renderAll()
+// init
+loadBest(); startNewNight(1)
 setInterval(gameTick, TICK_MS)
 setInterval(renderAll, 300)
