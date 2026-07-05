@@ -1,11 +1,12 @@
 // Simple browser-based FNAF-like mini-game with textures.
-// Rules (simple): survive 60 seconds. Cameras and doors use power. An animatronic moves closer each tick.
+// Added: office 'put down' camera view when clicking the same camera twice.
 
 const ROOMS = ["Show Stage","Dining Room","Kitchen","Hallway","Office"]
 let state = {
   time: 0,
   power: 100,
   selectedCam: null,
+  cameraPutDown: false,
   doorLeftClosed: false,
   doorRightClosed: false,
   animPos: 0, // 0..4, 4 == office
@@ -35,22 +36,56 @@ function renderCams(){
     d.innerHTML = `<div style="padding:6px; color:#bfe; font-size:12px">Cam ${i+1}<br/><small>${r}</small></div>`
     d.onclick = ()=>{
       if(!state.running) return
-      // if power is out, cameras unavailable
+      // If clicking the same camera while it's selected -> put down camera (office view)
+      if(state.selectedCam === i){
+        // deselect camera and put it down
+        state.selectedCam = null
+        state.cameraPutDown = true
+        renderAll()
+        return
+      }
+
+      // Selecting a different camera clears put-down state
+      state.cameraPutDown = false
+
+      // if no power, prevent selecting cameras
       if(state.power <= 0){
-        // quick shake message
         renderMessage('No power — cameras offline')
         return
       }
-      state.selectedCam = (state.selectedCam===i? null : i)
+
+      state.selectedCam = i
       renderAll()
     }
-    // show anim thumbnail when anim in that room
+    // visually mark the camera where the animatronic currently is
     if(i === state.animPos) d.style.borderColor = '#f66'
     camsEl.appendChild(d)
   })
 }
 
 function renderView(){
+  // If camera is put down: show office interior so player can watch the door
+  if(state.cameraPutDown){
+    // if power is out, show static
+    if(state.power <= 0){
+      viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>`
+      return
+    }
+
+    // show office interior
+    let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/office_interior.svg" alt="office" style="max-width:100%; height:auto;"/>`;
+
+    // if animatronic is at the office door, overlay an anim image and message
+    if(state.animPos === ROOMS.length - 1){
+      html += `<div style="position:relative;margin-top:-260px; pointer-events:none; display:flex;flex-direction:column;align-items:center"><img src='assets/anim_face.svg' alt='anim' style='max-height:220px; width:auto; mix-blend-mode:screen; opacity:0.95'/><div style='color:#f88; font-weight:700; margin-top:6px'>Animatronic at your door!</div></div>`
+    }
+
+    html += `</div>`
+    viewContent.innerHTML = html
+    return
+  }
+
+  // Normal camera view behavior
   if(state.selectedCam==null){
     viewContent.textContent = 'Select a camera'
     return
@@ -86,8 +121,8 @@ function renderMessage(t){
   msgEl.textContent = t||''
 }
 
-function toggleLeft(){ if(!state.running) return; state.doorLeftClosed = !state.doorLeftClosed; renderAll() }
-function toggleRight(){ if(!state.running) return; state.doorRightClosed = !state.doorRightClosed; renderAll() }
+function toggleLeft(){ if(!state.running) return; state.doorLeftClosed = !state.doorLeftClosed; state.cameraPutDown = false; renderAll() }
+function toggleRight(){ if(!state.running) return; state.doorRightClosed = !state.doorRightClosed; state.cameraPutDown = false; renderAll() }
 
 doorLeftBtn.onclick = toggleLeft
 doorRightBtn.onclick = toggleRight
@@ -132,6 +167,7 @@ function powerTick(){
     renderMessage('Power out! Cameras and doors disabled!')
     // disable features
     state.selectedCam = null
+    state.cameraPutDown = false
     state.doorLeftClosed = false
     state.doorRightClosed = false
     // but animatronic becomes more aggressive (handled in move)
