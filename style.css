@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 16px; background:#111; color:#eee }
+h1 { margin: 0 0 12px 0 }
+#hud { display:flex; gap:16px; align-items:center; margin-bottom:12px }
+#controls { display:flex; gap:16px }
+#cameras { width:260px; background:#222; padding:8px; border-radius:6px }
+#cams { display:flex; flex-wrap:wrap; gap:8px }
+.cam-thumb { width:120px; height:70px; background:#000; border:2px solid #333; display:flex; align-items:center; justify-content:center; color:#aaa; cursor:pointer; border-radius:4px }
+.cam-thumb.selected { border-color:#6cf }
+#view { flex:1; background:#222; padding:12px; border-radius:6px; min-height:120px }
+#view-content { height:200px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#ddd }
+.door.closed { background:#600; color:#fff }
+.door.open { background:#060; color:#fff }
+#message { margin-top:12px; font-weight:700 }
+#actions { margin-top:8px }
+button { padding:8px 10px; border-radius:6px; border:0; cursor:pointer }
+#restart { background:#257; color:#fff }
