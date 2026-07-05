@@ -138,12 +138,12 @@ function renderView(){
   if(state.cameraPutDown){
     // if power is out, show static
     if(state.power <= 0){
-      viewContent.innerHTML = `<img src="assets/static.png" alt="static" style="max-width:100%; max-height:100%"/>`
+      viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>`
       return
     }
 
     // show office interior
-    let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/office_interior.png" alt="office" style="max-width:100%; height:auto;"/>`;
+    let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/office_interior.svg" alt="office" style="max-width:100%; height:auto;"/>`;
 
     // if animatronic is at the office door, overlay an anim image, warning and play knock
     if(state.animPos === ROOMS.length - 1){
@@ -152,7 +152,7 @@ function renderView(){
       addWarning('Animatronic at your door!')
       playKnock()
 
-      html += `<div style="position:relative;margin-top:-260px; pointer-events:none; display:flex;flex-direction:column;align-items:center"><img src='assets/anim_face.png' alt='anim' style='max-height:220px; width:auto; mix-blend-mode:screen; opacity:0.95'/><div style='color:#f88; font-weight:700; margin-top:6px'>Animatronic at your door!</div></div>`
+      html += `<div style="position:relative;margin-top:-260px; pointer-events:none; display:flex;flex-direction:column;align-items:center"><img src='assets/anim_face.svg' alt='anim' style='max-height:220px; width:auto; mix-blend-mode:screen; opacity:0.95'/><div style='color:#f88; font-weight:700; margin-top:6px'>Animatronic at your door!</div></div>`
     }
 
     html += `</div>`
@@ -169,13 +169,13 @@ function renderView(){
 
   // if power is out, show static texture
   if(state.power <= 0){
-    viewContent.innerHTML = `<img src="assets/static.png" alt="static" style="max-width:100%; max-height:100%"/>` 
+    viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>` 
     return
   }
 
   // if animatronic is at this camera, show the anim image and play a footstep sound when it moves here
   if(state.selectedCam === state.animPos){
-    viewContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/anim_face.png" alt="anim" style="max-height:180px; width:auto"/><div style="color:#f88">${room} — ANIMATRONIC HERE!</div></div>`
+    viewContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/anim_face.svg" alt="anim" style="max-height:180px; width:auto"/><div style="color:#f88">${room} — ANIMATRONIC HERE!</div></div>`
     return
   }
 
