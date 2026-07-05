@@ -1,4 +1,4 @@
-// Simple browser-based FNAF-like mini-game.
+// Simple browser-based FNAF-like mini-game with textures.
 // Rules (simple): survive 60 seconds. Cameras and doors use power. An animatronic moves closer each tick.
 
 const ROOMS = ["Show Stage","Dining Room","Kitchen","Hallway","Office"]
@@ -30,12 +30,22 @@ function renderCams(){
   ROOMS.forEach((r, i) =>{
     const d = document.createElement('div')
     d.className = 'cam-thumb' + (state.selectedCam===i? ' selected':'')
-    d.textContent = `Cam ${i+1} — ${r}`
+    // use the cam_frame texture as background
+    d.style.backgroundImage = `url('assets/cam_frame.svg')`
+    d.innerHTML = `<div style="padding:6px; color:#bfe; font-size:12px">Cam ${i+1}<br/><small>${r}</small></div>`
     d.onclick = ()=>{
       if(!state.running) return
+      // if power is out, cameras unavailable
+      if(state.power <= 0){
+        // quick shake message
+        renderMessage('No power — cameras offline')
+        return
+      }
       state.selectedCam = (state.selectedCam===i? null : i)
       renderAll()
     }
+    // show anim thumbnail when anim in that room
+    if(i === state.animPos) d.style.borderColor = '#f66'
     camsEl.appendChild(d)
   })
 }
@@ -46,11 +56,21 @@ function renderView(){
     return
   }
   const room = ROOMS[state.selectedCam]
-  let s = `${room}`
-  if(state.selectedCam === state.animPos){
-    s += ' — ANIMATRONIC HERE!'
+
+  // if power is out, show static texture
+  if(state.power <= 0){
+    viewContent.innerHTML = `<img src="assets/static.svg" alt="static" style="max-width:100%; max-height:100%"/>` 
+    return
   }
-  viewContent.textContent = s
+
+  // if animatronic is at this camera, show the anim image
+  if(state.selectedCam === state.animPos){
+    viewContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="assets/anim_face.svg" alt="anim" style="max-height:180px; width:auto"/><div style="color:#f88">${room} — ANIMATRONIC HERE!</div></div>`
+    return
+  }
+
+  // normal camera view
+  viewContent.textContent = room
 }
 
 function renderHud(){
